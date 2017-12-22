@@ -10,12 +10,13 @@
 #define mqtt_pwd ""
 #define msg_length 100
 #define COV_RATIO 0.2 
-#define CO_SENSOR_PIN 23
-#define PM_SENSOR_PIN 22
+#define CO_SENSOR_PIN 4
+#define PM_SENSOR_PIN 2
 #define R0 20.0
 #define RL 10.0
 #define SYS_VOLTAGE 5000
 #define NO_DUST_VOLTAGE 400 
+const int iled = 25;
 char buf[100];
 const uint16_t mqtt_port = 1883;
 String data = "{\"data\":{\"co\":\"v_co\",\"pm\":\"v_pm\"}}";
@@ -36,6 +37,9 @@ WiFiClient ESP32client;
 PubSubClient MQTT (mqtt_server,mqtt_port,nhandl,ESP32client);
 
 void setup() {
+   pinMode(iled, OUTPUT);
+   digitalWrite(iled, LOW);
+   pinMode(CO_SENSOR_PIN, INPUT);
     Serial.begin(9600);
     setup_wifi();
     MQTT.setServer(mqtt_server, mqtt_port);
@@ -90,8 +94,16 @@ void resetData() {
     msg[i] = (char)0;
    Serial.print("\n");
 }
-void calcCo() {
-  int sensorValue = analogRead(CO_SENSOR_PIN);
+
+void loop() {
+    if (!MQTT.connected()) {
+        reconnect();
+    }
+    MQTT.loop();
+    delay(1000);
+    int sensorValue = analogRead(CO_SENSOR_PIN);
+    Serial.print(sensorValue);
+    Serial.print("\n");
   float ppm, t;
   unsigned int PPM;
   float voltage = sensorValue * (5.0 / 1023.0);
@@ -108,69 +120,9 @@ void calcCo() {
   Serial.print(" ug/m3 \n");
 
   String vCoStr(co);
-  data.replace(vCoKey, "600");
-}
-int Filter(int m)
-{
-  static int flag_first = 0, _buff[10], sum;
-  const int _buff_max = 10;
-  int i;
-  if (flag_first == 0) {
-    flag_first = 1;
-
-    for (i = 0, sum = 0; i < _buff_max; i++) {
-      _buff[i] = m;
-      sum += _buff[i];
-    }
-    return m;
-  } else {
-    sum -= _buff[0];
-    for (i = 0; i < (_buff_max - 1); i++)
-    {
-      _buff[i] = _buff[i + 1];
-    }
-    _buff[9] = m;
-    sum += _buff[9];
-    i = sum / 10.0;
-    return i;
-  }
-}
-
-void calcPm() {
-
-  float density;
-  int adcvalue = analogRead(PM_SENSOR_PIN);
-  adcvalue = Filter(adcvalue);
-  float voltage = (SYS_VOLTAGE / 1024.0) * adcvalue * 11;
-//  chuyen tu dien ap sang do bui
-  if (voltage >= NO_DUST_VOLTAGE) {
-    voltage -= NO_DUST_VOLTAGE;
-    density = voltage * COV_RATIO;
-  } else {
-    density = 0;
-  }
-  int dust = (unsigned int)density;
-  Serial.print("Dust pm2.5 : ");
-  Serial.print(dust);
-  Serial.print(" ug/m3\n");
-
-  String vPmStr(dust);
-  data.replace(vPmKey, "600");
-}
-void loop() {
-    if (!MQTT.connected()) {
-        reconnect();
-    }
-    MQTT.loop();
-    delay(1000);
-    calcCo();
-    Serial.print(data);
-    Serial.print("\n");
-    delay(2000);
-    calcPm();
-    Serial.print(data);
-    Serial.print("\n");
-     delay(3000);
+  data.replace(vCoKey,vCoStr);
+    
+    delay(3000);
     sendData();
     Serial.print(data);
     Serial.print("\n");
@@ -179,8 +131,6 @@ void loop() {
     Serial.print(data);
     Serial.print("\n");
     delay(1000);
- 
- 
 }
 
 

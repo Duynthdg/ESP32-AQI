@@ -95,9 +95,11 @@ int Filter(int m)
 }
 
 void calcPm() {
-
   float density;
+   digitalWrite(iled, HIGH);
+  delayMicroseconds(280);
   int adcvalue = analogRead(A1);
+  digitalWrite(iled, LOW);
   adcvalue = Filter(adcvalue);
   float voltage = (SYS_VOLTAGE / 1024.0) * adcvalue * 11;
 //  chuyen tu dien ap sang do bui
@@ -121,7 +123,9 @@ void calcLocation() {
 }
 
 void setup() {
-  Serial.begin(115200);
+   pinMode(iled, OUTPUT);
+   digitalWrite(iled, LOW);
+  Serial.begin(9600);
   Serial1.begin(115200);
 //  delay(1000);
 //  Serial.println("3");
